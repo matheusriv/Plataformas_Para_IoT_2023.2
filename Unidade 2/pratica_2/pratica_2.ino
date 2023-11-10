@@ -1,72 +1,108 @@
-#include <SPI.h>
-#include <MFRC522.h>
+#define LED_PIN 2
+#define BLINK_INTERVAL 250
 
-//Definição dos pinos de conexão do projeto
-#define PINO_SS 9
-#define PINO_RST 8
-#define pinoLED_VERMELHO 6
-#define pinoLED_VERDE 5
-#define pinoBUZZ 13
-int tentativas = 0;
+#define SENSORINICIO_PIN 15
+#define SENSOR1_PIN 27
+#define SENSOR2_PIN 4
+#define LEDINICIO_PIN 13
+#define LED1_PIN 12
+#define LED2_PIN 14
 
-//63 87 FC 94      23 8A B6 94
+bool gameStarted = false; 
+unsigned long startTime; 
+int player1 = 0; 
+int player2 = 0;
 
-//Cria o item para configurar o módulo RC522
-MFRC522 mfrc522(PINO_SS, PINO_RST);
-
-void setup(){
-  Serial.begin(9600); // Inicializa a serial
-  SPI.begin();// Inicializa a comunicação SPI
-  mfrc522.PCD_Init(); // Inicializa o módulo MFRC522
-  pinMode(pinoLED_VERMELHO, OUTPUT);
-  pinMode(pinoLED_VERDE, OUTPUT);
-  pinMode(pinoBUZZ, OUTPUT);
-  digitalWrite(pinoLED_VERMELHO, HIGH);
+void setup() {
+  Serial.begin(115200); 
+  pinMode(SENSORINICIO_PIN, INPUT);
+  pinMode(SENSOR1_PIN, INPUT);
+  pinMode(SENSOR2_PIN, INPUT);
+  pinMode(LEDINICIO_PIN, OUTPUT);
+  pinMode(LED1_PIN, OUTPUT);
+  pinMode(LED2_PIN, OUTPUT);
 }
 
-void loop(){
-  String tagLida= ""; //Cria uma variável vazia, do tipo string
-  if(mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()) {
-    Serial.println("UID da tag: "); // Mostra UID do token na serial
-    for(byte i = 0; i < mfrc522.uid.size; i++){
-      //tagLida.concat(String(mfrc522.uid.uidByte[i] < 0x10 ? " 0" : " "));
-      tagLida.concat(String(mfrc522.uid.uidByte[i], HEX));
+void loop() {
+  if(!gameStarted) {
+    if(touchRead(SENSORINICIO_PIN) < 20) {
+      startGame();
     }
-    tagLida.toUpperCase();
-    Serial.println(tagLida);// Printa a mensagem convertida em hexadecimal
-    if(tagLida == "6387FC94"){  // Libera o acesso
-      tentativas = 0;
-      digitalWrite(pinoLED_VERMELHO, LOW);
-      delay(200);
-      Serial.println("Acesso liberado");
-      digitalWrite(pinoLED_VERDE, HIGH);
-      delay(10000);
-      digitalWrite(pinoLED_VERDE, LOW);
-      digitalWrite(pinoLED_VERMELHO, HIGH);
-    } else{  
-      Serial.println("Cartão Inválido");
-        tentativas += 1;
-        if(tentativas >= 5){
-          Serial.println("SISTEMA BLOQUEADO");
-          digitalWrite(pinoBUZZ, HIGH); 
-          for(int i=0; i<30; i++){ // led piscando por 30 segundos
-            digitalWrite(pinoLED_VERMELHO, LOW);
-            delay(500);
-            digitalWrite(pinoLED_VERMELHO, HIGH);
-            delay(500);
-          }
-          digitalWrite(pinoBUZZ, LOW);
-          tentativas=0;
-        } else{
-          for(int i=0; i<3; i++){
-            digitalWrite(pinoLED_VERMELHO, LOW);
-            delay(500);
-            digitalWrite(pinoLED_VERMELHO, HIGH);
-            delay(500);
-          }
-        }
+  } 
+  if(gameStarted){
+    Serial.print("Sensor 1: ");
+    int touch1 = touchRead(SENSOR1_PIN);
+    Serial.println(touch1);
+    Serial.print("Sensor 2: ");
+    int touch2 = touchRead(SENSOR2_PIN);
+    Serial.println(touch2);
+    if(touch1 < 13 & touch1 > 9){
+      Serial.print("1 Tocou: ");
+      Serial.println(touch1);
+      playerWins(1, playerTime());
     }
+    if(touch2 < 13 & touch2 > 9){
+      Serial.print("2 Tocou: ");
+      Serial.println(touch2);
+      playerWins(2, playerTime());
+    }
+    delay(200);
+   
   }
+}
 
-  delay(500);
+void startGame() {
+  gameStarted = true;
+  for(int i = 0; i < 3; i++) {
+    digitalWrite(LEDINICIO_PIN, HIGH);
+    delay(500);
+    digitalWrite(LEDINICIO_PIN, LOW);
+    delay(500);
+  }
+  digitalWrite(LEDINICIO_PIN, HIGH);
+  Serial.println("Jogo começou");
+  startTime = millis(); // Registra o tempo de início do jogo
+}
+
+unsigned long playerTime(){
+  unsigned long endTime = millis(); // Hora de término do jogo
+  unsigned long elapsedTime = endTime - startTime; // Calcula o tempo decorrido
+  return elapsedTime;
+}
+
+void playerWins(int player, unsigned long elapsedT){
+  unsigned long elapsedTime = elapsedT;
+  
+  Serial.print("Jogador ");
+  Serial.print(player);
+  Serial.println(" venceu!");
+  Serial.print("Tempo: ");
+  Serial.print(elapsedTime/1000);
+  Serial.println(" s");
+  
+  if(player == 1) {
+    player1++;
+    digitalWrite(LED1_PIN, HIGH);
+  } else {
+    player2++;
+    digitalWrite(LED2_PIN, HIGH);
+  } 
+
+  Serial.println("========");
+  Serial.println("Placar:");
+  Serial.print("Jogador 1: ");
+  Serial.println(player1);
+  Serial.print("Jogador 2: ");
+  Serial.println(player2);
+  Serial.println("========");
+  
+  delay(4000);
+  
+  digitalWrite(LED1_PIN, LOW);
+  digitalWrite(LED2_PIN, LOW);
+  digitalWrite(LEDINICIO_PIN, LOW);
+  
+  gameStarted = false;
+  Serial.println("");
+  Serial.println("jogo recomeçou");
 }
