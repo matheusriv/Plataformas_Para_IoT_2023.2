@@ -324,6 +324,24 @@ void handleNewMessages(int numNewMessages) {
       }
     }
 
+    if(text == "/fechar_gaiola"){
+      if(gaiolaFechada == true){
+        bot.sendMessage(chat_id, "Gaiola já está fechada", "");
+      } else{
+        bot.sendMessage(chat_id, "Fechando gaiola", "");
+        fecharGaiola();
+      }
+    }
+
+    if(text == "/abrir_gaiola"){
+      if(gaiolaAberta == true){
+        bot.sendMessage(chat_id, "Gaiola já está fechada", "");
+      } else{
+        bot.sendMessage(chat_id, "Abrindo gaiola", "");
+        abrirGaiola();
+      }
+    }
+
     if(text == "/distancia") {
       bot.sendMessage(chat_id, "Distância atual medida: " + String(distanceCm, 2) + "cm", "");
     }
