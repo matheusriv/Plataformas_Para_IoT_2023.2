@@ -18,7 +18,7 @@
 #define SOUND_SPEED 0.034
 #define CM_TO_INCH 0.393701
 
-#define BOTtoken "BoT_Token"
+#define BOTtoken "bot_token"
 // Use @myidbot to find out the chat ID of an individual or a group
 // Also note that you need to click "start" on a bot before it can
 // message you
@@ -40,7 +40,7 @@ const char* mqtt_broker = "io.adafruit.com";
 const int mqtt_port = 1883;
 int mqtt_timeout = 10000;
 
-const char* mqtt_usernameAdafruitIO = "username_adafruit";
+const char* mqtt_usernameAdafruitIO = "adafruit_user";
 const char* mqtt_keyAdafruitIO = "key_adafruit";
 
 Servo servo_racao; 
@@ -60,6 +60,7 @@ const long adafruitDelay = 10000; // Intervalo de 10 segundos
 char buffer[10];
 bool gaiolaFechada = false;
 bool gaiolaAberta = false;
+String filename = "/dados.txt";
 
 void setup() {
   Serial.begin(115200);
@@ -102,6 +103,8 @@ void loop() {
   duration = pulseIn(echoPin, HIGH);
   // Calculate the distance
   distanceCm = duration * SOUND_SPEED/2;
+  Serial.print("Distância: ");
+  Serial.println(distanceCm);
 
   int hora = atoi(timeClient.getFormattedTime().substring(0, 2).c_str());
 
@@ -125,7 +128,6 @@ void loop() {
     // Ação a ser executada 3 vezes por dia
     triggerServoMovementFeeding();
   }
-
 
   // Verificação a cada 1 segundo
   if (currentMillis - previousMillis1 >= botRequestDelay) {
@@ -173,7 +175,7 @@ void fecharGaiola(){
     servo_racao.write(pos);    // tell servo to go to position in variable 'pos'
     delay(10);             // waits 15ms for the servo to reach the position
   }
-  bot.sendMessage(CHAT_ID, "Alerta: gaiola abrindo às: " + timeClient.getFormattedTime(), "");
+  bot.sendMessage(CHAT_ID, "Alerta: gaiola fechando às: " + timeClient.getFormattedTime(), "");
 }
 
 void abrirGaiola(){
@@ -184,7 +186,7 @@ void abrirGaiola(){
     servo_racao.write(pos);    // tell servo to go to position in variable 'pos'
     delay(10);             // waits 15ms for the servo to reach the position
   }
-  bot.sendMessage(CHAT_ID, "Alerta: pássaro detectado, gaiola fechando às: " + timeClient.getFormattedTime(), "");
+  bot.sendMessage(CHAT_ID, "Alerta: pássaro detectado, gaiola abrindo às: " + timeClient.getFormattedTime(), "");
 }
 
 bool shouldTriggerAction(int currentHour) {
@@ -210,7 +212,6 @@ void triggerServoMovementFeeding() {
     servo_racao.write(pos);
     delay(10);
   }
-  delay(10000);
 }
 
 void readFile(String path) {
@@ -230,6 +231,25 @@ void readFile(String path) {
     Serial.write(file.read());
   }
   Serial.println("\n------ Fim da leitura do arquivo -------");
+  file.close();
+}
+
+void writeDataFile() {
+  File file = SPIFFS.open(filename, "a");
+
+  if (!file) {
+    Serial.println(F("Falha ao abrir o arquivo no SPIFFS!"));
+    return;
+  }
+
+  file.println(timeClient.getFormattedTime());
+  if(gaiolaAberta == true){
+    file.println("Open");
+  } else{
+    file.println("Closed");
+  }
+  
+
   file.close();
 }
 
@@ -286,7 +306,25 @@ void handleNewMessages(int numNewMessages) {
       bot.sendMessage(chat_id, "Horários de alimentação programados: 8h, 14h, 20h", "");
     }
 
-    if(text == "/distance") {
+    if("/fechar_gaiola"){
+      if(gaiolaFechada == true){
+        bot.sendMessage(chat_id, "Gaiola já está fechada", "");
+      } else{
+        bot.sendMessage(chat_id, "Fechando gaiola", "");
+        fecharGaiola();
+      }
+    }
+
+    if("/abrir_gaiola"){
+      if(gaiolaAberta == true){
+        bot.sendMessage(chat_id, "Gaiola já está fechada", "");
+      } else{
+        bot.sendMessage(chat_id, "Abrindo gaiola", "");
+        abrirGaiola();
+      }
+    }
+
+    if(text == "/distancia") {
       bot.sendMessage(chat_id, "Distância atual medida: " + String(distanceCm, 2) + "cm", "");
     }
 
